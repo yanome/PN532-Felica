@@ -123,7 +123,8 @@ bool Felica::cmd_SearchServiceCode(uint8_t system) {
 }
 
 bool Felica::cmd_ReadWithoutEncryption(uint8_t service, uint8_t block,
-                                       bool *end, uint8_t *data) {
+                                       bool *end,
+                                       uint8_t data[FELICA_BLOCK_SIZE]) {
   uint8_t len;
 
   _buffer[0] = 0x01;              // number of services
@@ -155,6 +156,32 @@ bool Felica::cmd_ReadWithoutEncryption(uint8_t service, uint8_t block,
   return false;
 }
 
+bool Felica::cmd_WriteWithoutEncryption(uint8_t service, uint8_t block,
+                                        uint8_t data[FELICA_BLOCK_SIZE]) {
+  uint8_t len;
+
+  _buffer[0] = 0x01;              // number of services
+  _buffer[1] = services[service]; // service list: service, little endian
+  _buffer[2] = services[service] >> 8;
+  _buffer[3] = 0x01;  // number of blocks
+  _buffer[4] = 0x80;  // block list: length (2 bytes), access mode (write),
+                      // service list element
+  _buffer[5] = block; // block list: block number
+  memcpy(6 + _buffer, data, FELICA_BLOCK_SIZE);
+  len = 6 + FELICA_BLOCK_SIZE;
+  if (pn532_send_read(FELICA_CMD_WRITEWITHOUTENCRYPTION, &len)) {
+    if (2 == len          // flag1 + flag2
+        && !_buffer[0]    // flag1
+        && !_buffer[1]) { // flag2
+      return true;
+    }
+#ifdef FELICA_DEBUG
+    Serial.println("Invalid response to write command");
+#endif
+  }
+  return false;
+}
+
 bool Felica::can_read_service(uint8_t service) {
   return FELICA_SERVICE_ATTRIBUTE_NO_ENCRYPTION & services[service];
 }
@@ -176,5 +203,17 @@ bool Felica::read_service(uint8_t service, uint8_t *len,
 #ifdef FELICA_DEBUG
   Serial.println("Cannot read all blocks");
 #endif
+  return true;
+}
+
+bool Felica::write_random_service(uint8_t service, uint8_t len,
+                                  uint8_t (*data)[FELICA_BLOCK_SIZE]) {
+  uint8_t idx;
+
+  for (idx = 0; idx < len; ++idx) {
+    if (!cmd_WriteWithoutEncryption(service, idx, *(data + idx))) {
+      return false;
+    }
+  }
   return true;
 }

@@ -12,6 +12,7 @@
 #define FELICA_CMD_REQUESTSYSTEMCODE 0x0C
 #define FELICA_CMD_SEARCHSERVICECODE 0x0A
 #define FELICA_CMD_READWITHOUTENCRYPTION 0x06
+#define FELICA_CMD_WRITEWITHOUTENCRYPTION 0x08
 #define FELICA_ID_LENGTH 8
 #define FELICA_BLOCK_SIZE 16
 #define FELICA_SYSTEM_CODE 0xFFFF    // node code used to indicate system
@@ -38,6 +39,8 @@ public:
   bool can_read_service(uint8_t service);
   bool read_service(uint8_t service, uint8_t *len,
                     uint8_t (*data)[FELICA_BLOCK_SIZE]);
+  bool write_random_service(uint8_t service, uint8_t len,
+                            uint8_t (*data)[FELICA_BLOCK_SIZE]);
 
 private:
   PN532 *_pn532;
@@ -45,7 +48,9 @@ private:
 
   bool pn532_send_read(uint8_t cmd, uint8_t *len);
   bool cmd_ReadWithoutEncryption(uint8_t service, uint8_t block, bool *end,
-                                 uint8_t *data);
+                                 uint8_t data[FELICA_BLOCK_SIZE]);
+  bool cmd_WriteWithoutEncryption(uint8_t service, uint8_t block,
+                                  uint8_t data[FELICA_BLOCK_SIZE]);
 };
 
 #endif
